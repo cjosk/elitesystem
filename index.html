@@ -49,6 +49,9 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #6b7280;
         }
+        #detailsModal.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body class="text-gray-300">
@@ -119,6 +122,14 @@
         </main>
     </div>
 
+    <!-- Details Modal -->
+    <div id="detailsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div id="detailsModalContent" class="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+
     <!-- Firebase and App Logic -->
     <script type="module">
         // Firebase Imports
@@ -141,6 +152,7 @@
         const GUILD_ID = 'MsXlz1fUQFySJSqG4HiGbA';
         const API_URL = `https://gameinfo-ams.albiononline.com/api/gameinfo/guilds/${GUILD_ID}/members`;
         const PROXY_URL = 'https://proxy.cors.sh/';
+        const API_HEADERS = { 'x-cors-api-key': 'temp_714656bc4aa5d47705ca27466dcebd6b' };
 
         const ROLES = {
             DPS: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M16.667 9.833l-3.5-6.125a.5.5 0 00-.866 0l-3.5 6.125a.5.5 0 00.433.75h7a.5.5 0 00.433-.75zM12 14.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-7zM9.833 21.375a.5.5 0 00-.866 0L5.467 15.25a.5.5 0 00-.433-.75h-3.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-1.634z"/></svg>`, name: 'DPS' },
@@ -158,6 +170,8 @@
         let selectedPlayerId = null;
         let unsubscribe = null; 
 
+        const detailsModal = document.getElementById('detailsModal');
+        const detailsModalContent = document.getElementById('detailsModalContent');
         const tabElite = document.getElementById('tab-elite');
         const tabAll = document.getElementById('tab-all');
         const contentElite = document.getElementById('content-elite');
@@ -213,9 +227,7 @@
         async function fetchGuildMembers() {
             allLoader.style.display = 'block';
             try {
-                const response = await fetch(PROXY_URL + API_URL, {
-                    headers: { 'x-cors-api-key': 'temp_714656bc4aa5d47705ca27466dcebd6b' }
-                });
+                const response = await fetch(PROXY_URL + API_URL, { headers: API_HEADERS });
                 if (!response.ok) throw new Error(`API request failed: ${response.status}`);
                 const data = await response.json();
                 allGuildMembers = data.sort((a, b) => a.Name.localeCompare(b.Name));
@@ -282,14 +294,14 @@
                             <img src="https://i.imgur.com/0tGrbNG.png" alt="profile" class="w-14 h-14 rounded-full border-2 border-amber-500/50 shadow-lg">
                             <h2 class="text-2xl font-bold text-amber-400">${player.id}</h2>
                         </div>
-                        <button data-player-id="${player.id}" class="remove-player-btn text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-white/10">
+                        <button class="remove-player-btn text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-white/10">
                             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
                     
                     <div class="flex flex-wrap gap-2 p-2 bg-black/30 rounded-lg">
                         ${Object.keys(ROLES).map(roleKey => `
-                            <button data-player-id="${player.id}" data-role="${roleKey}" title="${ROLES[roleKey].name}" class="role-btn p-2 rounded-lg transition-all duration-200 ${player.role === roleKey ? 'bg-amber-500 text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}">
+                            <button data-role="${roleKey}" title="${ROLES[roleKey].name}" class="role-btn p-2 rounded-lg transition-all duration-200 ${player.role === roleKey ? 'bg-amber-500 text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}">
                                 ${ROLES[roleKey].icon}
                             </button>
                         `).join('')}
@@ -301,11 +313,11 @@
                             ${(player.tags || []).map((tag, index) => `
                                 <span class="flex items-center gap-1.5 bg-red-900/50 text-red-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-red-500/30">
                                     ${tag}
-                                    <button data-player-id="${player.id}" data-tag-index="${index}" class="remove-tag-btn text-red-300 hover:text-white"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                    <button data-tag-index="${index}" class="remove-tag-btn text-red-300 hover:text-white"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg></button>
                                 </span>`).join('')}
                              <div class="flex gap-2">
                                 <input type="text" placeholder="Etiket ekle..." class="tag-input bg-black/30 text-xs rounded-lg py-1 px-2 w-28 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
-                                <button data-player-id="${player.id}" class="add-tag-btn bg-gray-700 hover:bg-gray-600 text-white font-bold text-xs py-1 px-2 rounded-lg transition-colors">+</button>
+                                <button class="add-tag-btn bg-gray-700 hover:bg-gray-600 text-white font-bold text-xs py-1 px-2 rounded-lg transition-colors">+</button>
                             </div>
                        </div>
                     </div>
@@ -318,15 +330,21 @@
                                     <span class="font-medium text-gray-300">${spec.name}</span>
                                     <div class="flex items-center gap-3">
                                         <span class="font-bold text-amber-400">${spec.value}</span>
-                                        <button data-player-id="${player.id}" data-spec-index="${index}" class="remove-spec-btn text-gray-600 hover:text-red-400 transition-colors"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                        <button data-spec-index="${index}" class="remove-spec-btn text-gray-600 hover:text-red-400 transition-colors"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                                     </div>
                                 </div>`).join('')}
                         </div>
                         <div class="flex gap-2 pt-3 border-t border-white/10">
                             <input type="text" placeholder="Spec Adı" class="spec-name-input flex-grow bg-black/30 text-sm rounded-lg p-2 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
                             <input type="number" placeholder="Değer" class="spec-value-input bg-black/30 text-sm rounded-lg p-2 w-24 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
-                            <button data-player-id="${player.id}" class="add-spec-btn bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md shadow-red-900/50">Ekle</button>
+                            <button class="add-spec-btn bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md shadow-red-900/50">Ekle</button>
                         </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-white/10">
+                        <button data-player-name="${player.id}" class="view-details-btn w-full text-center bg-amber-600/80 hover:bg-amber-500/80 text-black font-bold py-2 px-4 rounded-lg transition-colors">
+                            Detay Görüntüle
+                        </button>
                     </div>
                 </div>`;
         }
@@ -347,10 +365,112 @@
             }
         }
 
+        // --- MODAL & DETAILS ---
+        async function showPlayerDetails(playerName) {
+            detailsModal.classList.remove('hidden');
+            detailsModalContent.innerHTML = `
+                <div class="text-center p-8">
+                    <p class="text-lg font-semibold text-amber-400 animate-pulse">Oyuncu verileri yükleniyor...</p>
+                </div>
+            `;
+
+            try {
+                const searchResponse = await fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${playerName}`, { headers: API_HEADERS });
+                if(!searchResponse.ok) throw new Error('Oyuncu arama API hatası.');
+                const searchData = await searchResponse.json();
+                const playerInfo = searchData.players.find(p => p.Name.toLowerCase() === playerName.toLowerCase());
+
+                if (!playerInfo) throw new Error('API üzerinde oyuncu bulunamadı.');
+                
+                const playerId = playerInfo.Id;
+
+                const [statsRes, killsRes, deathsRes] = await Promise.all([
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}`, { headers: API_HEADERS }),
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}/kills`, { headers: API_HEADERS }),
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}/deaths`, { headers: API_HEADERS })
+                ]);
+                
+                if (!statsRes.ok || !killsRes.ok || !deathsRes.ok) throw new Error('Oyuncu detayları çekilemedi.');
+
+                const stats = await statsRes.json();
+                const kills = await killsRes.json();
+                const deaths = await deathsRes.json();
+                
+                detailsModalContent.innerHTML = generateDetailsHTML(stats, kills, deaths);
+
+            } catch (error) {
+                console.error("Error fetching player details:", error);
+                detailsModalContent.innerHTML = `
+                    <div class="text-center p-8">
+                        <p class="text-lg font-semibold text-red-500">Hata!</p>
+                        <p class="text-gray-400 mt-2">${error.message}</p>
+                        <button id="closeModalBtn" class="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg">Kapat</button>
+                    </div>
+                `;
+            }
+        }
+
+        function generateDetailsHTML(stats, kills, deaths) {
+            const format = (num) => num.toLocaleString('tr-TR');
+            const fameRatio = (stats.KillFame && stats.DeathFame > 0) ? (stats.KillFame / stats.DeathFame).toFixed(2) : 0;
+            
+            const statCard = (title, value, icon, color) => `
+                <div class="glass-card p-4 rounded-lg flex flex-col items-center justify-center text-center">
+                    <div class="flex items-center gap-2">
+                         ${icon}
+                        <h4 class="text-sm text-gray-400">${title}</h4>
+                    </div>
+                    <p class="text-2xl font-bold ${color}">${format(value)}</p>
+                </div>
+            `;
+            
+            const eventTable = (title, events, type) => `
+                <div class="glass-card p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-400">${title}</h3>
+                    <div class="space-y-2 text-sm max-h-60 overflow-y-auto">
+                        ${events.length > 0 ? events.slice(0, 10).map(event => `
+                            <div class="grid grid-cols-3 gap-2 p-2 bg-black/20 rounded-md">
+                                <span class="truncate font-medium">${type === 'kill' ? event.Victim.Name : event.Killer.Name}</span>
+                                <span class="text-center text-gray-400">${new Date(event.TimeStamp).toLocaleString('tr-TR')}</span>
+                                <span class="text-right font-semibold text-amber-400">${format(event.Victim.KillFame)}</span>
+                            </div>
+                        `).join('') : '<p class="text-gray-500">Kayıt bulunamadı.</p>'}
+                    </div>
+                </div>
+            `;
+
+            return `
+                <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <h2 class="text-2xl font-bold text-amber-400 mb-6 text-center">${stats.Name} İstatistikleri</h2>
+                
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    ${statCard('Kill Fame', stats.KillFame, `<svg class="w-5 h-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.667 9.833l-3.5-6.125a.5.5 0 00-.866 0l-3.5 6.125a.5.5 0 00.433.75h7a.5.5 0 00.433-.75zM12 14.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-7zM9.833 21.375a.5.5 0 00-.866 0L5.467 15.25a.5.5 0 00-.433-.75h-3.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-1.634z"/></svg>`, 'text-red-400')}
+                    ${statCard('PvE Fame', stats.LifetimeStatistics.PvE.Total, `<svg class="w-5 h-5 text-sky-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M3.75 3A.75.75 0 003 3.75v16.5c0 .414.336.75.75.75h16.5a.75.75 0 00.75-.75V3.75A.75.75 0 0020.25 3H3.75zM8.25 9a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5H8.25zm0 3a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H8.25z" clip-rule="evenodd" /></svg>`, 'text-sky-400')}
+                    ${statCard('Toplayıcılık', stats.LifetimeStatistics.Gathering.All.Total, `<svg class="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.5c0 .338.216.633.533.722a9.735 9.735 0 003.217.521 9.707 9.707 0 005.25-1.533.75.75 0 00.467-.684V5.25a.75.75 0 00-.467-.717zM12.75 4.533A9.707 9.707 0 0118 3a9.735 9.735 0 013.25.555.75.75 0 01.5.707v14.5c0 .338-.216.633-.533.722a9.735 9.735 0 01-3.217.521 9.707 9.707 0 01-5.25-1.533.75.75 0 01-.467-.684V5.25a.75.75 0 01.467-.717z" /></svg>`, 'text-green-400')}
+                    ${statCard('Üretim', stats.LifetimeStatistics.Crafting.Total, `<svg class="w-5 h-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12.5 2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28 2.528.75.75 0 00.284 1.012A2.248 2.248 0 0110.5 9.75v.001a2.25 2.25 0 01-1.5 2.121.75.75 0 00-.53 1.015c.603 1.293 1.838 2.293 3.28 2.61a.75.75 0 00.448-1.414 2.254 2.254 0 01-.15-1.002v-.001a2.25 2.25 0 011.5-2.121.75.75 0 00.53-1.015c-.603-1.293-1.838-2.293-3.28-2.61A.75.75 0 008.25 8.358a2.248 2.248 0 011.52-1.282.75.75 0 00.283-1.012A3.743 3.743 0 007.77 3.821V2.25a.75.75 0 00-1.5 0v1.571a5.244 5.244 0 00-3.103 4.223.75.75 0 00.812.812 3.745 3.745 0 011.89-1.313.75.75 0 00.413-1.213A3.746 3.746 0 0112 3.75c1.988 0 3.615 1.545 3.736 3.513.75.75 0 00.413 1.213 3.745 3.745 0 011.89 1.313.75.75 0 00.812-.812A5.244 5.244 0 0017.75 3.82V2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28-2.528.75.75 0 00-1.22.482zM12 12.75a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" clip-rule="evenodd" /></svg>`, 'text-yellow-400')}
+                    ${statCard('Death Fame', stats.DeathFame, `<svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clip-rule="evenodd" /></svg>`, 'text-gray-400')}
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${eventTable('Son Ölümler', deaths, 'death')}
+                    ${eventTable('Son Öldürmeler', kills, 'kill')}
+                </div>
+            `;
+        }
+
+
         function setupEventListeners() {
             tabElite.addEventListener('click', () => switchTab('elite'));
             tabAll.addEventListener('click', () => switchTab('all'));
             searchInput.addEventListener('input', e => { currentSearchTerm = e.target.value; renderElitePlayers(); });
+
+            detailsModal.addEventListener('click', (e) => {
+                 if(e.target.id === 'detailsModal' || e.target.closest('#closeModalBtn')) {
+                    detailsModal.classList.add('hidden');
+                 }
+            });
 
             roleFiltersContainer.addEventListener('click', e => {
                 const button = e.target.closest('.filter-btn');
@@ -366,51 +486,53 @@
                  if(playerItem) { selectedPlayerId = playerItem.dataset.playerId; renderElitePlayers(); }
             });
             
+            // Refactored main event listener for simplicity and reliability
             document.body.addEventListener('click', async (e) => {
-                const target = e.target;
-                const button = target.closest('button');
+                const button = e.target.closest('button');
                 if (!button) return;
 
-                if (button.matches('.add-to-elite-btn')) await addPlayerToElite(button.dataset.playerName);
-                if (button.matches('.remove-player-btn')) await removePlayerFromElite(button.dataset.playerId);
-                if (button.matches('.role-btn')) await updatePlayer(button.dataset.playerId, { role: button.dataset.role });
-
-                if (button.matches('.add-spec-btn') || button.matches('.add-tag-btn')) {
-                    const card = button.closest('.glass-card');
-                    const playerId = button.dataset.playerId;
-                    const player = elitePlayers.find(p => p.id === playerId);
-                    if (!player) return;
-
-                    if (button.matches('.add-spec-btn')) {
-                        const nameInput = card.querySelector('.spec-name-input');
-                        const valueInput = card.querySelector('.spec-value-input');
-                        if (nameInput.value.trim() && valueInput.value.trim()) {
-                            const newSpecs = [...(player.specs || []), { name: nameInput.value.trim(), value: parseInt(valueInput.value) || 0 }];
-                            await updatePlayer(playerId, { specs: newSpecs });
-                            nameInput.value = ''; valueInput.value = '';
-                        }
-                    } else { // add-tag-btn
-                        const tagInput = card.querySelector('.tag-input');
-                        if (tagInput.value.trim()) {
-                            const newTags = [...(player.tags || []), tagInput.value.trim()];
-                            await updatePlayer(playerId, { tags: newTags });
-                            tagInput.value = '';
-                        }
-                    }
+                // --- Actions outside of the main player card ---
+                if (button.matches('.add-to-elite-btn')) {
+                    await addPlayerToElite(button.dataset.playerName);
+                    return;
                 }
+               
+                // --- Actions inside of the main player card ---
+                const card = button.closest('.glass-card[id^="card-"]');
+                if (!card) return;
 
-                if (button.matches('.remove-spec-btn') || button.matches('.remove-tag-btn')) {
-                    const playerId = button.dataset.playerId;
-                    const player = elitePlayers.find(p => p.id === playerId);
-                    if (!player) return;
+                const playerId = card.id.replace('card-', '');
+                const player = elitePlayers.find(p => p.id === playerId);
+                if (!player) return;
 
-                    if (button.matches('.remove-spec-btn')) {
-                        const newSpecs = player.specs.filter((_, i) => i !== parseInt(button.dataset.specIndex));
+                if (button.matches('.view-details-btn')) {
+                    await showPlayerDetails(player.id);
+                } else if (button.matches('.remove-player-btn')) {
+                    await removePlayerFromElite(playerId);
+                } else if (button.matches('.role-btn')) {
+                    await updatePlayer(playerId, { role: button.dataset.role });
+                } else if (button.matches('.add-spec-btn')) {
+                    const nameInput = card.querySelector('.spec-name-input');
+                    const valueInput = card.querySelector('.spec-value-input');
+                    if (nameInput.value.trim() && valueInput.value.trim()) {
+                        const newSpecs = [...(player.specs || []), { name: nameInput.value.trim(), value: parseInt(valueInput.value) || 0 }];
                         await updatePlayer(playerId, { specs: newSpecs });
-                    } else { // remove-tag-btn
-                        const newTags = player.tags.filter((_, i) => i !== parseInt(button.dataset.tagIndex));
-                        await updatePlayer(playerId, { tags: newTags });
+                        nameInput.value = '';
+                        valueInput.value = '';
                     }
+                } else if (button.matches('.remove-spec-btn')) {
+                    const newSpecs = player.specs.filter((_, i) => i !== parseInt(button.dataset.specIndex));
+                    await updatePlayer(playerId, { specs: newSpecs });
+                } else if (button.matches('.add-tag-btn')) {
+                    const tagInput = card.querySelector('.tag-input');
+                    if (tagInput.value.trim()) {
+                        const newTags = [...(player.tags || []), tagInput.value.trim()];
+                        await updatePlayer(playerId, { tags: newTags });
+                        tagInput.value = '';
+                    }
+                } else if (button.matches('.remove-tag-btn')) {
+                    const newTags = player.tags.filter((_, i) => i !== parseInt(button.dataset.tagIndex));
+                    await updatePlayer(playerId, { tags: newTags });
                 }
             });
         }
