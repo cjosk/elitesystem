@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albion Online Spec Takip Sistemi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .tab-active {
+            border-color: #3b82f6; /* border-blue-500 */
+            color: #3b82f6; /* text-blue-500 */
+        }
+        .filter-active {
+            background-color: #3b82f6 !important; /* bg-blue-500 */
+            color: white !important;
+        }
+        /* Custom scrollbar for a better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; /* bg-gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; /* bg-gray-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* bg-gray-500 */
+        }
+        ::-webkit-scrollbar:horizontal {
+            height: 8px;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-6 text-center">
+            <h1 class="text-4xl font-bold text-white mb-2">Albion Online Spec Takip Sistemi</h1>
+            <p class="text-gray-400">Guild oyuncularını izleyin ve elit takımınızı oluşturun.</p>
+        </header>
+
+        <!-- Search and Filter Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-6 sticky top-0 z-10 shadow-lg">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="relative flex-grow">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </span>
+                    <input id="searchInput" type="text" placeholder="Elit oyuncu ara..." class="w-full bg-gray-700 text-white rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div id="roleFilters" class="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+                    <!-- Filter buttons will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="mb-6">
+            <div class="border-b border-gray-700">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <button id="tab-elite" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm tab-active">
+                        Elit Oyuncular
+                    </button>
+                    <button id="tab-all" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-400 hover:text-gray-200 hover:border-gray-500">
+                        Tüm Oyuncular
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <main>
+            <!-- Elite Players Content -->
+            <div id="content-elite">
+                <div id="elitePlayersGrid" class="flex overflow-x-auto space-x-6 pb-4">
+                    <!-- Elite player cards will be rendered here -->
+                </div>
+                 <div id="elite-loader" class="text-center py-10">
+                    <p>Elit oyuncular yükleniyor...</p>
+                </div>
+            </div>
+
+            <!-- All Players Content -->
+            <div id="content-all" class="hidden">
+                 <div id="allPlayersList" class="bg-gray-800 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
+                    <!-- All guild members will be listed here -->
+                 </div>
+                 <div id="all-loader" class="text-center py-10">
+                    <p>Guild üyeleri çekiliyor...</p>
+                </div>
+            </div>
+        </main>
+        
+    </div>
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIG and GLOBAL VARS ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-albion-tracker';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        const GUILD_ID = 'MsXlz1fUQFySJSqG4HiGbA';
+        const API_URL = `https://gameinfo-ams.albiononline.com/api/gameinfo/guilds/${GUILD_ID}/members`;
+        const PROXY_URL = 'https://proxy.cors.sh/';
+
+        const ROLES = {
+            DPS: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M16.667 9.833l-3.5-6.125a.5.5 0 00-.866 0l-3.5 6.125a.5.5 0 00.433.75h7a.5.5 0 00.433-.75zM12 14.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-7zM9.833 21.375a.5.5 0 00-.866 0L5.467 15.25a.5.5 0 00-.433-.75h-3.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-1.634z"/></svg>`, name: 'DPS' },
+            TANK: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M12.5 2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28 2.528.75.75 0 00.284 1.012A2.248 2.248 0 0110.5 9.75v.001a2.25 2.25 0 01-1.5 2.121.75.75 0 00-.53 1.015c.603 1.293 1.838 2.293 3.28 2.61a.75.75 0 00.448-1.414 2.254 2.254 0 01-.15-1.002v-.001a2.25 2.25 0 011.5-2.121.75.75 0 00.53-1.015c-.603-1.293-1.838-2.293-3.28-2.61A.75.75 0 008.25 8.358a2.248 2.248 0 011.52-1.282.75.75 0 00.283-1.012A3.743 3.743 0 007.77 3.821V2.25a.75.75 0 00-1.5 0v1.571a5.244 5.244 0 00-3.103 4.223.75.75 0 00.812.812 3.745 3.745 0 011.89-1.313.75.75 0 00.413-1.213A3.746 3.746 0 0112 3.75c1.988 0 3.615 1.545 3.736 3.513.75.75 0 00.413 1.213 3.745 3.745 0 011.89 1.313.75.75 0 00.812-.812A5.244 5.244 0 0017.75 3.82V2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28-2.528.75.75 0 00-1.22.482zM12 12.75a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" clip-rule="evenodd" /></svg>`, name: 'TANK' },
+            HEALER: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 9a.75.75 0 00-1.5 0v2.25H9a.75.75 0 000 1.5h2.25V15a.75.75 0 001.5 0v-2.25H15a.75.75 0 000-1.5h-2.25V9z" clip-rule="evenodd" /></svg>`, name: 'HEALER' },
+            SUPPORT: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.5c0 .338.216.633.533.722a9.735 9.735 0 003.217.521 9.707 9.707 0 005.25-1.533.75.75 0 00.467-.684V5.25a.75.75 0 00-.467-.717zM12.75 4.533A9.707 9.707 0 0118 3a9.735 9.735 0 013.25.555.75.75 0 01.5.707v14.5c0 .338-.216.633-.533.722a9.735 9.735 0 01-3.217.521 9.707 9.707 0 01-5.25-1.533.75.75 0 01-.467-.684V5.25a.75.75 0 01.467-.717z" /></svg>`, name: 'SUPPORT' },
+            'BATTLE MOUNT': { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M11.47 1.72a.75.75 0 011.06 0l7.5 7.5a.75.75 0 11-1.06 1.06L12 3.31 4.53 10.28a.75.75 0 01-1.06-1.06l7.5-7.5zM12 21a.75.75 0 01-.75-.75V11.25a.75.75 0 011.5 0V20.25a.75.75 0 01-.75.75zM3.75 12a.75.75 0 01.75-.75h15a.75.75 0 010 1.5h-15a.75.75 0 01-.75-.75z" /></svg>`, name: 'BATTLE MOUNT' },
+        };
+        
+        let db, auth, userId;
+        let elitePlayers = [];
+        let allGuildMembers = [];
+        let currentFilter = 'ALL';
+        let currentSearchTerm = '';
+        let unsubscribe = null; // To store the onSnapshot listener
+
+        // --- DOM ELEMENTS ---
+        const tabElite = document.getElementById('tab-elite');
+        const tabAll = document.getElementById('tab-all');
+        const contentElite = document.getElementById('content-elite');
+        const contentAll = document.getElementById('content-all');
+        const eliteGrid = document.getElementById('elitePlayersGrid');
+        const allList = document.getElementById('allPlayersList');
+        const searchInput = document.getElementById('searchInput');
+        const roleFiltersContainer = document.getElementById('roleFilters');
+        const eliteLoader = document.getElementById('elite-loader');
+        const allLoader = document.getElementById('all-loader');
+        
+        // --- INITIALIZATION ---
+        async function initialize() {
+            if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                console.error("Firebase config is missing.");
+                eliteLoader.textContent = "Firebase yapılandırması eksik. Uygulama başlatılamıyor.";
+                allLoader.textContent = "";
+                return;
+            }
+
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            setupEventListeners();
+            buildRoleFilters();
+            fetchGuildMembers();
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    if (unsubscribe) unsubscribe(); // Unsubscribe from previous listener if any
+                    listenForElitePlayers();
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        eliteLoader.textContent = "Kimlik doğrulama hatası. Veriler yüklenemiyor.";
+                    }
+                }
+            });
+        }
+
+        // --- DATA FETCHING & SYNC ---
+        
+        // Listen for realtime updates from Firestore
+        function listenForElitePlayers() {
+            if (!userId) return;
+            const elitePlayersRef = collection(db, 'artifacts', appId, 'users', userId, 'elitePlayers');
+            
+            unsubscribe = onSnapshot(elitePlayersRef, (snapshot) => {
+                elitePlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderElitePlayers();
+                eliteLoader.style.display = 'none';
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+                eliteLoader.textContent = "Veritabanı bağlantı hatası.";
+            });
+        }
+
+        // Fetch guild members from Albion API via proxy
+        async function fetchGuildMembers() {
+            allLoader.style.display = 'block';
+            try {
+                const response = await fetch(PROXY_URL + API_URL, {
+                    headers: { 'x-cors-api-key': 'temp_714656bc4aa5d47705ca27466dcebd6b' }
+                });
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                const data = await response.json();
+                allGuildMembers = data.sort((a, b) => a.Name.localeCompare(b.Name));
+                renderAllPlayers();
+            } catch (error) {
+                console.error('Error fetching guild members:', error);
+                allList.innerHTML = `<p class="text-red-400">Guild verileri çekilemedi. Lütfen daha sonra tekrar deneyin.</p>`;
+            } finally {
+                allLoader.style.display = 'none';
+            }
+        }
+
+        // --- RENDERING ---
+
+        function renderAllPlayers() {
+            if (allGuildMembers.length === 0) {
+                 allList.innerHTML = `<p class="text-gray-400">Guild'de oyuncu bulunamadı veya API'ye ulaşılamadı.</p>`;
+                 return;
+            }
+
+            const existingEliteNames = elitePlayers.map(p => p.id);
+            allList.innerHTML = allGuildMembers.map(member => {
+                const isElite = existingEliteNames.includes(member.Name);
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md mb-2">
+                        <span class="font-medium">${member.Name}</span>
+                        <button 
+                            data-player-name="${member.Name}"
+                            class="add-to-elite-btn text-sm font-semibold rounded-md transition-colors ${isElite ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} px-3 py-1"
+                            ${isElite ? 'disabled' : ''}>
+                            ${isElite ? 'Elit' : 'Elite Ekle'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderElitePlayers() {
+            const filteredPlayers = elitePlayers.filter(player => {
+                const matchesSearch = player.id.toLowerCase().includes(currentSearchTerm.toLowerCase());
+                const matchesFilter = currentFilter === 'ALL' || player.role === currentFilter;
+                return matchesSearch && matchesFilter;
+            });
+
+            if (filteredPlayers.length === 0) {
+                eliteGrid.innerHTML = `<div class="col-span-1 md:col-span-2 xl:col-span-3 text-center py-10">
+                    <p class="text-gray-400">Filtreyle eşleşen elit oyuncu bulunamadı.</p>
+                </div>`;
+            } else {
+                eliteGrid.innerHTML = filteredPlayers.map(player => createPlayerCardHTML(player)).join('');
+            }
+            renderAllPlayers(); // Update "Add to Elite" buttons status
+        }
+        
+        function createPlayerCardHTML(player) {
+            const specs = player.specs || [];
+            const tags = player.tags || [];
+            return `
+                <div class="bg-gray-800 rounded-lg shadow-xl p-5 flex flex-col gap-4 border border-gray-700 w-[90vw] md:w-[450px] flex-shrink-0" id="card-${player.id}">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <img src="https://i.imgur.com/0tGrbNG.png" alt="profile" class="w-14 h-14 rounded-full border-2 border-gray-600">
+                            <h2 class="text-2xl font-bold text-white">${player.id}</h2>
+                        </div>
+                        <button data-player-id="${player.id}" class="remove-player-btn text-gray-400 hover:text-red-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Role Selector -->
+                    <div class="flex flex-wrap gap-2 p-2 bg-gray-900/50 rounded-md">
+                        ${Object.keys(ROLES).map(roleKey => `
+                            <button data-player-id="${player.id}" data-role="${roleKey}" title="${ROLES[roleKey].name}" class="role-btn p-2 rounded-md transition-colors ${player.role === roleKey ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}">
+                                ${ROLES[roleKey].icon}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="flex flex-col gap-3">
+                       <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Etiketler</h3>
+                       <div class="flex flex-wrap gap-2 items-center">
+                            ${tags.map((tag, index) => `
+                                <span class="flex items-center gap-1 bg-green-500/20 text-green-300 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                    ${tag}
+                                    <button data-player-id="${player.id}" data-tag-index="${index}" class="remove-tag-btn text-green-300 hover:text-white">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </span>
+                            `).join('')}
+                             <div class="flex gap-1">
+                                <input type="text" placeholder="Potansiyel, Kemik..." class="tag-input bg-gray-700 text-xs rounded-md py-1 px-2 w-28 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <button data-player-id="${player.id}" class="add-tag-btn bg-gray-600 hover:bg-gray-500 text-white font-bold text-xs py-1 px-2 rounded-md">+</button>
+                            </div>
+                       </div>
+                    </div>
+                    
+                    <!-- Specs -->
+                    <div class="flex flex-col gap-3">
+                        <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Specler</h3>
+                        <div class="spec-list space-y-2">
+                            ${specs.map((spec, index) => `
+                                <div class="flex items-center justify-between bg-gray-700/50 p-2 rounded-md text-sm">
+                                    <span class="font-medium text-gray-300">${spec.name}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-blue-400">${spec.value}</span>
+                                        <button data-player-id="${player.id}" data-spec-index="${index}" class="remove-spec-btn text-gray-500 hover:text-red-400">
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex gap-2 pt-2 border-t border-gray-700">
+                            <input type="text" placeholder="Spec Adı (örn: Plate Armor)" class="spec-name-input flex-grow bg-gray-700 text-sm rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <input type="number" placeholder="Değer" class="spec-value-input bg-gray-700 text-sm rounded-md p-2 w-24 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <button data-player-id="${player.id}" class="add-spec-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Ekle</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function buildRoleFilters() {
+            const allButton = document.createElement('button');
+            allButton.className = 'filter-btn text-sm font-semibold bg-gray-700 hover:bg-gray-600 rounded-md px-3 py-2 transition-colors filter-active';
+            allButton.dataset.filter = 'ALL';
+            allButton.textContent = 'Hepsi';
+            roleFiltersContainer.appendChild(allButton);
+
+            for (const roleKey in ROLES) {
+                const button = document.createElement('button');
+                button.className = 'filter-btn text-sm font-semibold bg-gray-700 hover:bg-gray-600 rounded-md px-3 py-2 transition-colors flex items-center gap-2';
+                button.dataset.filter = roleKey;
+                button.innerHTML = `${ROLES[roleKey].icon} ${ROLES[roleKey].name}`;
+                roleFiltersContainer.appendChild(button);
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+        function setupEventListeners() {
+            // Tab switching
+            tabElite.addEventListener('click', () => switchTab('elite'));
+            tabAll.addEventListener('click', () => switchTab('all'));
+            
+            // Search
+            searchInput.addEventListener('input', (e) => {
+                currentSearchTerm = e.target.value;
+                renderElitePlayers();
+            });
+
+            // Filtering
+            roleFiltersContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('.filter-btn');
+                if (!button) return;
+
+                currentFilter = button.dataset.filter;
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filter-active'));
+                button.classList.add('filter-active');
+                renderElitePlayers();
+            });
+            
+            // Delegated events for dynamic content
+            document.body.addEventListener('click', async (e) => {
+                const target = e.target;
+                
+                // Add to Elite
+                if (target.matches('.add-to-elite-btn')) {
+                    const playerName = target.dataset.playerName;
+                    await addPlayerToElite(playerName);
+                }
+                
+                // Remove Player
+                if (target.closest('.remove-player-btn')) {
+                    const button = target.closest('.remove-player-btn');
+                    const playerId = button.dataset.playerId;
+                    // confirm() diyalogları bu ortamda desteklenmediği için silme işlevini düzeltmek amacıyla kaldırıldı.
+                    // Gelecekte onay için özel bir modal eklenebilir.
+                    await removePlayerFromElite(playerId);
+                }
+                
+                // Change Role
+                if (target.closest('.role-btn')) {
+                    const button = target.closest('.role-btn');
+                    await updatePlayer(button.dataset.playerId, { role: button.dataset.role });
+                }
+
+                // Add Spec
+                if (target.closest('.add-spec-btn')) {
+                    const button = target.closest('.add-spec-btn');
+                    const card = button.closest('.bg-gray-800');
+                    const nameInput = card.querySelector('.spec-name-input');
+                    const valueInput = card.querySelector('.spec-value-input');
+                    
+                    if (nameInput.value.trim() && valueInput.value.trim()) {
+                        const player = elitePlayers.find(p => p.id === button.dataset.playerId);
+                        const newSpecs = [...(player.specs || []), { name: nameInput.value.trim(), value: valueInput.value.trim() }];
+                        await updatePlayer(button.dataset.playerId, { specs: newSpecs });
+                    }
+                }
+                
+                // Remove Spec
+                if (target.closest('.remove-spec-btn')) {
+                    const button = target.closest('.remove-spec-btn');
+                    const player = elitePlayers.find(p => p.id === button.dataset.playerId);
+                    const newSpecs = player.specs.filter((_, i) => i !== parseInt(button.dataset.specIndex));
+                    await updatePlayer(button.dataset.playerId, { specs: newSpecs });
+                }
+
+                 // Add Tag
+                if (target.closest('.add-tag-btn')) {
+                    const button = target.closest('.add-tag-btn');
+                    const card = button.closest('.bg-gray-800');
+                    const tagInput = card.querySelector('.tag-input');
+                    
+                    if (tagInput.value.trim()) {
+                        const player = elitePlayers.find(p => p.id === button.dataset.playerId);
+                        const newTags = [...(player.tags || []), tagInput.value.trim()];
+                        await updatePlayer(button.dataset.playerId, { tags: newTags });
+                        tagInput.value = '';
+                    }
+                }
+
+                // Remove Tag
+                if (target.closest('.remove-tag-btn')) {
+                    const button = target.closest('.remove-tag-btn');
+                    const player = elitePlayers.find(p => p.id === button.dataset.playerId);
+                    const newTags = player.tags.filter((_, i) => i !== parseInt(button.dataset.tagIndex));
+                    await updatePlayer(button.dataset.playerId, { tags: newTags });
+                }
+            });
+        }
+        
+        function switchTab(tab) {
+            if (tab === 'elite') {
+                contentElite.classList.remove('hidden');
+                contentAll.classList.add('hidden');
+                tabElite.classList.add('tab-active');
+                tabElite.classList.remove('text-gray-400', 'hover:text-gray-200', 'hover:border-gray-500');
+                tabAll.classList.remove('tab-active');
+                tabAll.classList.add('text-gray-400', 'hover:text-gray-200', 'hover:border-gray-500');
+            } else {
+                contentAll.classList.remove('hidden');
+                contentElite.classList.add('hidden');
+                tabAll.classList.add('tab-active');
+                tabAll.classList.remove('text-gray-400', 'hover:text-gray-200', 'hover:border-gray-500');
+                tabElite.classList.remove('tab-active');
+                tabElite.classList.add('text-gray-400', 'hover:text-gray-200', 'hover:border-gray-500');
+            }
+        }
+        
+        // --- FIRESTORE ACTIONS ---
+        async function addPlayerToElite(playerName) {
+            if (!userId || !playerName) return;
+            const newPlayer = {
+                role: 'DPS',
+                specs: [],
+                tags: []
+            };
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'elitePlayers', playerName);
+                await setDoc(docRef, newPlayer);
+            } catch (error) {
+                console.error("Error adding player to elite:", error);
+            }
+        }
+        
+        async function removePlayerFromElite(playerId) {
+            if (!userId || !playerId) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'elitePlayers', playerId);
+                await deleteDoc(docRef);
+            } catch (error) {
+                console.error("Error removing player:", error);
+            }
+        }
+
+        async function updatePlayer(playerId, dataToUpdate) {
+            if (!userId || !playerId) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'elitePlayers', playerId);
+                await setDoc(docRef, dataToUpdate, { merge: true });
+            } catch (error) {
+                console.error("Error updating player:", error);
+            }
+        }
+
+        // Start the application
+        initialize();
+    </script>
+</body>
+</html>
+
+
