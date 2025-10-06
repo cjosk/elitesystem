@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albion Online Spec Takip Sistemi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 25px 25px;
+        }
+        .tab-active {
+            border-color: #f59e0b; /* border-amber-500 */
+            color: #f59e0b; /* text-amber-500 */
+            background: linear-gradient(to top, rgba(245, 158, 11, 0.1), transparent);
+        }
+        .filter-active {
+            background-color: #f59e0b !important; /* bg-amber-500 */
+            color: black !important;
+            font-weight: 600;
+        }
+        .player-list-item-active {
+            background-color: #f59e0b !important; /* bg-amber-500 */
+            color: black !important;
+            font-weight: 600;
+        }
+        .glass-card {
+            background-color: rgba(23, 23, 23, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem; /* rounded-2xl */
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+        #detailsModal.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="text-gray-300">
+
+    <div class="container mx-auto p-4 md:p-6 min-h-screen">
+        <header class="mb-6 flex items-center gap-4">
+             <img src="https://i.hizliresim.com/mred25t.png" alt="Team Supremacy Logo" class="h-12 w-12 rounded-lg shadow-lg">
+             <h1 class="text-3xl font-bold text-amber-400 tracking-wider">TEAM SUPREMACY</h1>
+        </header>
+        
+        <!-- Tabs -->
+        <div class="mb-6">
+            <div class="border-b border-white/10">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <button id="tab-dashboard" class="w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm tab-active transition-colors">
+                        Dashboard
+                    </button>
+                    <button id="tab-elite" class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent font-medium text-sm text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors">
+                        Elit Oyuncular
+                    </button>
+                    <button id="tab-all" class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent font-medium text-sm text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors">
+                        Tüm Oyuncular
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <main>
+            <!-- Dashboard Content -->
+            <div id="content-dashboard">
+                <div id="dashboard-loader" class="text-center py-10">
+                    <p>Dashboard verileri hesaplanıyor...</p>
+                </div>
+                <div id="dashboard-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dashboard cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- Elite Players Content -->
+            <div id="content-elite" class="hidden">
+                 <!-- Search and Filter Section -->
+                <div class="glass-card p-4 mb-6 sticky top-4 z-20">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="relative flex-grow">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </span>
+                            <input id="searchInput" type="text" placeholder="Elit oyuncu ara..." class="w-full bg-black/30 text-white rounded-lg py-2 pl-10 pr-4 border border-transparent focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                        </div>
+                        <div id="roleFilters" class="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+                            <!-- Filter buttons will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+                <div id="elite-layout" class="hidden flex-col md:flex-row gap-6">
+                    <!-- Left Column: Player List -->
+                    <div id="elitePlayersList" class="w-full md:w-1/3 lg:w-1/4 glass-card p-2 space-y-2 max-h-[65vh] overflow-y-auto">
+                        <!-- Player names will be rendered here -->
+                    </div>
+                    <!-- Right Column: Player Details -->
+                    <div id="selectedPlayerCard" class="w-full md:w-2/3 lg:w-3/4">
+                        <!-- Selected player card will be rendered here -->
+                    </div>
+                </div>
+                 <div id="elite-loader" class="text-center py-10">
+                    <p>Elit oyuncular yükleniyor...</p>
+                </div>
+            </div>
+
+            <!-- All Players Content -->
+            <div id="content-all" class="hidden">
+                 <div id="allPlayersList" class="glass-card p-4 max-h-[65vh] overflow-y-auto space-y-2">
+                    <!-- All guild members will be listed here -->
+                 </div>
+                 <div id="all-loader" class="text-center py-10">
+                    <p>Guild üyeleri çekiliyor...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div id="detailsModalContent" class="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvJn41W9GPFMwtvNNGzL6Qs7DOMwHAUvo",
+            authDomain: "eliteplayer-8959c.firebaseapp.com",
+            projectId: "eliteplayer-8959c",
+            storageBucket: "eliteplayer-8959c.firebasestorage.app",
+            messagingSenderId: "162779219121",
+            appId: "1:162779219121:web:83c2357cd7e71a654a8e90",
+            measurementId: "G-87RF7J5HHV"
+        };
+        
+        // --- GLOBAL VARS ---
+        const GUILD_ID = 'MsXlz1fUQFySJSqG4HiGbA';
+        const API_URL = `https://gameinfo-ams.albiononline.com/api/gameinfo/guilds/${GUILD_ID}/members`;
+        const PROXY_URL = 'https://proxy.cors.sh/';
+        const API_HEADERS = { 'x-cors-api-key': 'temp_714656bc4aa5d47705ca27466dcebd6b' };
+
+        const ROLES = {
+            DPS: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M13,2V7H11V2H13M7.5,8A2.5,2.5,0,0,0,5,10.5A2.5,2.5,0,0,0,7.5,13H16.5A2.5,2.5,0,0,0,19,10.5A2.5,2.5,0,0,0,16.5,8H7.5M11,14V22H13V14H11Z" /></svg>`, name: 'DPS' },
+            TANK: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M12,1L3,5v6c0,5.55,3.84,10.74,9,12,5.16-1.26,9-6.45,9-12V5ZM12,11.99h7c-0.53,4.12-3.28,7.79-7,8.94V12H5V6.3l7-3.11Z"/></svg>`, name: 'TANK' },
+            HEALER: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 9a.75.75 0 00-1.5 0v2.25H9a.75.75 0 000 1.5h2.25V15a.75.75 0 001.5 0v-2.25H15a.75.75 0 000-1.5h-2.25V9z" clip-rule="evenodd" /></svg>`, name: 'HEALER' },
+            SUPPORT: { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.5c0 .338.216.633.533.722a9.735 9.735 0 003.217.521 9.707 9.707 0 005.25-1.533.75.75 0 00.467-.684V5.25a.75.75 0 00-.467-.717zM12.75 4.533A9.707 9.707 0 0118 3a9.735 9.735 0 013.25.555.75.75 0 01.5.707v14.5c0 .338-.216.633-.533.722a9.735 9.735 0 01-3.217.521 9.707 9.707 0 01-5.25-1.533.75.75 0 01-.467-.684V5.25a.75.75 0 01.467-.717z" /></svg>`, name: 'SUPPORT' },
+            'BATTLE MOUNT': { icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M19.78,18H15V16L17.2,12.28C17.5,11.72 17.16,11 16.5,11H14V9A1,1,0,0,0,13,8H11V6A1,1,0,0,0,10,5H7A1,1,0,0,0,6,6V9.47L4.22,12.55C3.5,13.72 4.4,15.22 5.77,15.22H8V18H4.22C4.22,18 2,21 2,21H22C22,21 19.78,18 19.78,18Z" /></svg>`, name: 'BATTLE MOUNT' },
+        };
+
+        const DISARRAY_LEVELS = {1:21,2:22,3:23,4:24,5:25,6:26,7:27,8:28,9:29,10:30,11:31,12:32,13:33,14:34,15:36,16:37,17:39,18:41,19:44,20:46,21:48,22:49,23:51,24:54,25:56,26:58,27:61,28:64,29:67,30:70,31:74,32:79,33:83,34:89,35:95,36:99,37:103,38:108,39:114,40:119,41:126,42:133,43:141,44:148,45:154,46:160,47:167,48:175,49:183,50:192,51:200,52:207,53:215,54:223,55:232,56:242,57:252,58:264,59:276,60:290,61:305,62:322};
+        
+        let db, auth;
+        let elitePlayers = [];
+        let elitePlayersWithStats = [];
+        let allGuildMembers = [];
+        let currentFilter = 'ALL';
+        let currentSearchTerm = '';
+        let selectedPlayerId = null;
+        let unsubscribe = null; 
+
+        const detailsModal = document.getElementById('detailsModal');
+        const detailsModalContent = document.getElementById('detailsModalContent');
+        const tabDashboard = document.getElementById('tab-dashboard');
+        const tabElite = document.getElementById('tab-elite');
+        const tabAll = document.getElementById('tab-all');
+        const contentDashboard = document.getElementById('content-dashboard');
+        const contentElite = document.getElementById('content-elite');
+        const contentAll = document.getElementById('content-all');
+        const dashboardGrid = document.getElementById('dashboard-grid');
+        const dashboardLoader = document.getElementById('dashboard-loader');
+        const elitePlayersList = document.getElementById('elitePlayersList');
+        const selectedPlayerCard = document.getElementById('selectedPlayerCard');
+        const allList = document.getElementById('allPlayersList');
+        const searchInput = document.getElementById('searchInput');
+        const roleFiltersContainer = document.getElementById('roleFilters');
+        const eliteLoader = document.getElementById('elite-loader');
+        const allLoader = document.getElementById('all-loader');
+        
+        async function initialize() {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            setupEventListeners();
+            buildRoleFilters();
+            fetchGuildMembers();
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    if (unsubscribe) unsubscribe(); 
+                    listenForElitePlayers();
+                } else {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Anonymous authentication failed:", error);
+                        eliteLoader.textContent = "Kimlik doğrulama hatası.";
+                        dashboardLoader.textContent = "Kimlik doğrulama hatası.";
+                    }
+                }
+            });
+        }
+        
+        function listenForElitePlayers() {
+            const elitePlayersRef = collection(db, 'guilds', GUILD_ID, 'elitePlayers');
+            
+            unsubscribe = onSnapshot(elitePlayersRef, (snapshot) => {
+                elitePlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.id.localeCompare(b.id));
+                fetchAllElitePlayerStats();
+                document.getElementById('elite-layout').style.display = 'flex';
+                eliteLoader.style.display = 'none';
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+                eliteLoader.textContent = "Veritabanı bağlantı hatası.";
+            });
+        }
+
+        async function fetchAllElitePlayerStats() {
+            if (elitePlayers.length === 0) {
+                elitePlayersWithStats = [];
+                renderDashboard();
+                renderElitePlayers();
+                return;
+            }
+
+            dashboardLoader.style.display = 'block';
+            dashboardGrid.style.display = 'none';
+
+            const playerPromises = elitePlayers.map(async (player) => {
+                try {
+                    const searchResponse = await fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${player.id}`, { headers: API_HEADERS });
+                    if (!searchResponse.ok) return { ...player, stats: null };
+                    const searchData = await searchResponse.json();
+                    const playerInfo = searchData.players.find(p => p.Name.toLowerCase() === player.id.toLowerCase());
+                    if (!playerInfo) return { ...player, stats: null };
+                    
+                    const statsResponse = await fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerInfo.Id}`, { headers: API_HEADERS });
+                    if (!statsResponse.ok) return { ...player, stats: null };
+                    
+                    const stats = await statsResponse.json();
+                    return { ...player, stats };
+                } catch (error) {
+                    console.error(`Failed to fetch stats for ${player.id}:`, error);
+                    return { ...player, stats: null };
+                }
+            });
+
+            elitePlayersWithStats = await Promise.all(playerPromises);
+            renderDashboard();
+            renderElitePlayers();
+        }
+
+        function renderDashboard() {
+            dashboardLoader.style.display = 'none';
+            dashboardGrid.style.display = 'grid';
+
+            const totalPlayers = elitePlayersWithStats.length;
+            if (totalPlayers === 0) {
+                dashboardGrid.innerHTML = `<p class="col-span-full text-center text-gray-400">Dashboard'u görüntülemek için elit oyuncu ekleyin.</p>`;
+                return;
+            }
+
+            const roleCounts = elitePlayersWithStats.reduce((acc, player) => {
+                acc[player.role] = (acc[player.role] || 0) + 1;
+                return acc;
+            }, {});
+
+            const totalKillFame = elitePlayersWithStats.reduce((sum, p) => sum + (p.stats?.KillFame || 0), 0);
+            const totalDeathFame = elitePlayersWithStats.reduce((sum, p) => sum + (p.stats?.DeathFame || 0), 0);
+            const teamKDA = totalDeathFame > 0 ? (totalKillFame / totalDeathFame).toFixed(2) : "∞";
+
+            const disarrayEntry = Object.entries(DISARRAY_LEVELS).find(([level, groupSize]) => totalPlayers <= groupSize);
+            const disarrayLevel = disarrayEntry ? disarrayEntry[0] : 'N/A';
+
+            const format = (num) => num.toLocaleString('tr-TR');
+
+            const dashboardCard = (title, value, subtext = "") => `
+                <div class="glass-card p-6 flex flex-col items-center justify-center text-center">
+                    <h3 class="text-lg font-semibold text-gray-400">${title}</h3>
+                    <p class="text-4xl font-bold text-amber-400 my-2">${value}</p>
+                    <p class="text-sm text-gray-500">${subtext}</p>
+                </div>
+            `;
+            
+            const rolesHTML = Object.keys(ROLES).map(roleKey => `
+                <div class="flex justify-between items-center text-lg">
+                    <span class="font-semibold">${ROLES[roleKey].name}</span>
+                    <span class="font-bold text-amber-400">${roleCounts[roleKey] || 0}</span>
+                </div>
+            `).join('');
+
+            dashboardGrid.innerHTML = `
+                ${dashboardCard('Elit Oyuncu', totalPlayers)}
+                ${dashboardCard('Disarray Level', disarrayLevel, `(${totalPlayers} kişilik grup)`)}
+                ${dashboardCard('Takım KDA', teamKDA)}
+                ${dashboardCard('Toplam Kill Fame', format(totalKillFame))}
+                ${dashboardCard('Toplam Death Fame', format(totalDeathFame))}
+                <div class="glass-card p-6">
+                     <h3 class="text-lg font-semibold text-gray-400 mb-4 text-center">Rol Dağılımı</h3>
+                     <div class="space-y-3">${rolesHTML}</div>
+                </div>
+            `;
+        }
+
+
+        async function fetchGuildMembers() {
+            allLoader.style.display = 'block';
+            try {
+                const response = await fetch(PROXY_URL + API_URL, { headers: API_HEADERS });
+                if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+                const data = await response.json();
+                allGuildMembers = data.sort((a, b) => a.Name.localeCompare(b.Name));
+                renderAllPlayers();
+            } catch (error) {
+                console.error('Error fetching guild members:', error);
+                allList.innerHTML = `<p class="text-red-400">Guild verileri çekilemedi. Lütfen daha sonra tekrar deneyin.</p>`;
+            } finally {
+                allLoader.style.display = 'none';
+            }
+        }
+
+        function renderAllPlayers() {
+            if (allGuildMembers.length === 0) return;
+            const existingEliteNames = elitePlayers.map(p => p.id);
+            allList.innerHTML = allGuildMembers.map(member => {
+                const isElite = existingEliteNames.includes(member.Name);
+                return `
+                    <div class="flex items-center justify-between p-3 bg-black/30 rounded-lg">
+                        <span class="font-medium">${member.Name}</span>
+                        <button 
+                            data-player-name="${member.Name}"
+                            class="add-to-elite-btn text-sm font-semibold rounded-md transition-all duration-200 ${isElite ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-900/50'} px-3 py-1"
+                            ${isElite ? 'disabled' : ''}>
+                            ${isElite ? 'Elit' : 'Elite Ekle'}
+                        </button>
+                    </div>`;
+            }).join('');
+        }
+        
+        function renderElitePlayers() {
+            const filteredPlayers = elitePlayersWithStats.filter(player => {
+                const matchesSearch = player.id.toLowerCase().includes(currentSearchTerm.toLowerCase());
+                const matchesFilter = currentFilter === 'ALL' || player.role === currentFilter;
+                return matchesSearch && matchesFilter;
+            });
+
+            const isSelectedPlayerVisible = filteredPlayers.some(p => p.id === selectedPlayerId);
+            if (!isSelectedPlayerVisible) {
+                selectedPlayerId = filteredPlayers.length > 0 ? filteredPlayers[0].id : null;
+            }
+            
+            elitePlayersList.innerHTML = filteredPlayers.length > 0 ? filteredPlayers.map(player => {
+                 const kda = player.stats ? (player.stats.DeathFame > 0 ? (player.stats.KillFame / player.stats.DeathFame).toFixed(2) : "∞") : "N/A";
+                return `
+                <button data-player-id="${player.id}" class="player-list-item w-full text-left p-3 rounded-lg transition-all duration-200 hover:bg-white/10 ${player.id === selectedPlayerId ? 'player-list-item-active' : ''}">
+                    <div class="flex justify-between items-center">
+                        <span>${player.id}</span>
+                        <span class="text-xs font-semibold px-2 py-1 rounded-full ${player.id === selectedPlayerId ? 'bg-black/20' : 'bg-amber-500/10 text-amber-400'}">
+                            KDA: ${kda}
+                        </span>
+                    </div>
+                </button>
+            `}).join('') : `<p class="text-gray-400 p-4 text-center">Oyuncu bulunamadı.</p>`;
+            
+            if (selectedPlayerId) {
+                const playerToDisplay = elitePlayersWithStats.find(p => p.id === selectedPlayerId);
+                selectedPlayerCard.innerHTML = playerToDisplay ? createPlayerCardHTML(playerToDisplay) : `<div class="glass-card p-6 text-center"><p class="text-gray-400">Oyuncu verileri bulunamadı.</p></div>`;
+            } else {
+                selectedPlayerCard.innerHTML = `<div class="glass-card p-6 text-center flex items-center justify-center h-full"><p class="text-gray-400">Detayları görmek için bir oyuncu seçin.</p></div>`;
+            }
+
+            renderAllPlayers();
+        }
+        
+        function createPlayerCardHTML(player) {
+            return `
+                <div class="glass-card p-5 flex flex-col gap-5" id="card-${player.id}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-5">
+                            <img src="https://i.imgur.com/0tGrbNG.png" alt="profile" class="w-20 h-20 rounded-full border-2 border-amber-500/50 shadow-lg">
+                            <h2 class="text-3xl font-bold text-amber-400">${player.id}</h2>
+                        </div>
+                        <button class="remove-player-btn text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-white/10">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 p-2 bg-black/30 rounded-lg">
+                        ${Object.keys(ROLES).map(roleKey => `
+                            <button data-role="${roleKey}" title="${ROLES[roleKey].name}" class="role-btn p-2 rounded-lg transition-all duration-200 ${player.role === roleKey ? 'bg-amber-500 text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}">
+                                ${ROLES[roleKey].icon}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                       <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Etiketler</h3>
+                       <div class="flex flex-wrap gap-2 items-center">
+                            ${(player.tags || []).map((tag, index) => `
+                                <span class="flex items-center gap-1.5 bg-red-900/50 text-red-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-red-500/30">
+                                    ${tag}
+                                    <button data-tag-index="${index}" class="remove-tag-btn text-red-300 hover:text-white"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                </span>`).join('')}
+                             <div class="flex gap-2">
+                                <input type="text" placeholder="Etiket ekle..." class="tag-input bg-black/30 text-xs rounded-lg py-1 px-2 w-28 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
+                                <button class="add-tag-btn bg-gray-700 hover:bg-gray-600 text-white font-bold text-xs py-1 px-2 rounded-lg transition-colors">+</button>
+                            </div>
+                       </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Specler</h3>
+                        <div class="spec-list space-y-2 max-h-48 overflow-y-auto pr-2">
+                            ${(player.specs || []).map((spec, index) => `
+                                <div class="flex items-center justify-between bg-black/20 p-2 rounded-lg text-sm">
+                                    <span class="font-medium text-gray-300">${spec.name}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold text-amber-400">${spec.value}</span>
+                                        <button data-spec-index="${index}" class="remove-spec-btn text-gray-600 hover:text-red-400 transition-colors"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                    </div>
+                                </div>`).join('')}
+                        </div>
+                        <div class="flex gap-2 pt-3 border-t border-white/10">
+                            <input type="text" placeholder="Spec Adı" class="spec-name-input flex-grow bg-black/30 text-sm rounded-lg p-2 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
+                            <input type="number" placeholder="Değer" class="spec-value-input bg-black/30 text-sm rounded-lg p-2 w-24 border border-transparent focus:outline-none focus:ring-1 focus:ring-amber-500">
+                            <button class="add-spec-btn bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md shadow-red-900/50">Ekle</button>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-white/10">
+                        <button data-player-name="${player.id}" class="view-details-btn w-full text-center bg-amber-600/80 hover:bg-amber-500/80 text-black font-bold py-2 px-4 rounded-lg transition-colors">
+                            Detay Görüntüle
+                        </button>
+                    </div>
+                </div>`;
+        }
+        
+        function buildRoleFilters() {
+            const allButton = document.createElement('button');
+            allButton.className = 'filter-btn text-sm bg-black/30 hover:bg-white/10 rounded-lg px-3 py-2 transition-colors filter-active';
+            allButton.dataset.filter = 'ALL';
+            allButton.textContent = 'Hepsi';
+            roleFiltersContainer.appendChild(allButton);
+
+            for (const roleKey in ROLES) {
+                const button = document.createElement('button');
+                button.className = 'filter-btn text-sm bg-black/30 hover:bg-white/10 rounded-lg p-2 transition-colors flex items-center gap-2';
+                button.dataset.filter = roleKey;
+                button.innerHTML = `${ROLES[roleKey].icon} <span class="hidden sm:inline">${ROLES[roleKey].name}</span>`;
+                roleFiltersContainer.appendChild(button);
+            }
+        }
+
+        // --- MODAL & DETAILS ---
+        async function showPlayerDetails(playerName) {
+            detailsModal.classList.remove('hidden');
+            detailsModalContent.innerHTML = `
+                <div class="text-center p-8">
+                    <p class="text-lg font-semibold text-amber-400 animate-pulse">Oyuncu verileri yükleniyor...</p>
+                </div>
+            `;
+
+            try {
+                const searchResponse = await fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${playerName}`, { headers: API_HEADERS });
+                if(!searchResponse.ok) throw new Error('Oyuncu arama API hatası.');
+                const searchData = await searchResponse.json();
+                const playerInfo = searchData.players.find(p => p.Name.toLowerCase() === playerName.toLowerCase());
+
+                if (!playerInfo) throw new Error('API üzerinde oyuncu bulunamadı.');
+                
+                const playerId = playerInfo.Id;
+
+                const [statsRes, killsRes, deathsRes] = await Promise.all([
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}`, { headers: API_HEADERS }),
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}/kills`, { headers: API_HEADERS }),
+                    fetch(`${PROXY_URL}https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}/deaths`, { headers: API_HEADERS })
+                ]);
+                
+                if (!statsRes.ok || !killsRes.ok || !deathsRes.ok) throw new Error('Oyuncu detayları çekilemedi.');
+
+                const stats = await statsRes.json();
+                const kills = await killsRes.json();
+                const deaths = await deathsRes.json();
+                
+                detailsModalContent.innerHTML = generateDetailsHTML(stats, kills, deaths);
+
+            } catch (error) {
+                console.error("Error fetching player details:", error);
+                detailsModalContent.innerHTML = `
+                    <div class="text-center p-8">
+                        <p class="text-lg font-semibold text-red-500">Hata!</p>
+                        <p class="text-gray-400 mt-2">${error.message}</p>
+                        <button id="closeModalBtn" class="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg">Kapat</button>
+                    </div>
+                `;
+            }
+        }
+
+        function generateDetailsHTML(stats, kills, deaths) {
+            const format = (num) => num.toLocaleString('tr-TR');
+            const fameRatio = (stats.KillFame && stats.DeathFame > 0) ? (stats.KillFame / stats.DeathFame).toFixed(2) : 0;
+            
+            const statCard = (title, value, icon, color) => `
+                <div class="glass-card p-4 rounded-lg flex flex-col items-center justify-center text-center">
+                    <div class="flex items-center gap-2">
+                         ${icon}
+                        <h4 class="text-sm text-gray-400">${title}</h4>
+                    </div>
+                    <p class="text-2xl font-bold ${color}">${format(value)}</p>
+                </div>
+            `;
+            
+            const eventTable = (title, events, type) => `
+                <div class="glass-card p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-3 text-amber-400">${title}</h3>
+                    <div class="space-y-2 text-sm max-h-60 overflow-y-auto">
+                        ${events.length > 0 ? events.slice(0, 10).map(event => `
+                            <div class="grid grid-cols-3 gap-2 p-2 bg-black/20 rounded-md">
+                                <span class="truncate font-medium">${type === 'kill' ? event.Victim.Name : event.Killer.Name}</span>
+                                <span class="text-center text-gray-400">${new Date(event.TimeStamp).toLocaleString('tr-TR')}</span>
+                                <span class="text-right font-semibold text-amber-400">${format(event.Victim.KillFame)}</span>
+                            </div>
+                        `).join('') : '<p class="text-gray-500">Kayıt bulunamadı.</p>'}
+                    </div>
+                </div>
+            `;
+
+            return `
+                <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <h2 class="text-2xl font-bold text-amber-400 mb-6 text-center">${stats.Name} İstatistikleri</h2>
+                
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    ${statCard('Kill Fame', stats.KillFame, `<svg class="w-5 h-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.667 9.833l-3.5-6.125a.5.5 0 00-.866 0l-3.5 6.125a.5.5 0 00.433.75h7a.5.5 0 00.433-.75zM12 14.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-7zM9.833 21.375a.5.5 0 00-.866 0L5.467 15.25a.5.5 0 00-.433-.75h-3.5a.5.5 0 00-.433.75l3.5 6.125a.5.5 0 00.866 0l3.5-6.125a.5.5 0 00-.433-.75h-1.634z"/></svg>`, 'text-red-400')}
+                    ${statCard('PvE Fame', stats.LifetimeStatistics.PvE.Total, `<svg class="w-5 h-5 text-sky-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M3.75 3A.75.75 0 003 3.75v16.5c0 .414.336.75.75.75h16.5a.75.75 0 00.75-.75V3.75A.75.75 0 0020.25 3H3.75zM8.25 9a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5H8.25zm0 3a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H8.25z" clip-rule="evenodd" /></svg>`, 'text-sky-400')}
+                    ${statCard('Toplayıcılık', stats.LifetimeStatistics.Gathering.All.Total, `<svg class="w-5 h-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.5c0 .338.216.633.533.722a9.735 9.735 0 003.217.521 9.707 9.707 0 005.25-1.533.75.75 0 00.467-.684V5.25a.75.75 0 00-.467-.717zM12.75 4.533A9.707 9.707 0 0118 3a9.735 9.735 0 013.25.555.75.75 0 01.5.707v14.5c0 .338-.216.633-.533.722a9.735 9.735 0 01-3.217.521 9.707 9.707 0 01-5.25-1.533.75.75 0 01-.467-.684V5.25a.75.75 0 01.467-.717z" /></svg>`, 'text-green-400')}
+                    ${statCard('Üretim', stats.LifetimeStatistics.Crafting.Total, `<svg class="w-5 h-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12.5 2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28 2.528.75.75 0 00.284 1.012A2.248 2.248 0 0110.5 9.75v.001a2.25 2.25 0 01-1.5 2.121.75.75 0 00-.53 1.015c.603 1.293 1.838 2.293 3.28 2.61a.75.75 0 00.448-1.414 2.254 2.254 0 01-.15-1.002v-.001a2.25 2.25 0 011.5-2.121.75.75 0 00.53-1.015c-.603-1.293-1.838-2.293-3.28-2.61A.75.75 0 008.25 8.358a2.248 2.248 0 011.52-1.282.75.75 0 00.283-1.012A3.743 3.743 0 007.77 3.821V2.25a.75.75 0 00-1.5 0v1.571a5.244 5.244 0 00-3.103 4.223.75.75 0 00.812.812 3.745 3.745 0 011.89-1.313.75.75 0 00.413-1.213A3.746 3.746 0 0112 3.75c1.988 0 3.615 1.545 3.736 3.513.75.75 0 00.413 1.213 3.745 3.745 0 011.89 1.313.75.75 0 00.812-.812A5.244 5.244 0 0017.75 3.82V2.25a.75.75 0 00-1.5 0v1.571a3.743 3.743 0 00-2.28-2.528.75.75 0 00-1.22.482zM12 12.75a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" clip-rule="evenodd" /></svg>`, 'text-yellow-400')}
+                    ${statCard('Death Fame', stats.DeathFame, `<svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clip-rule="evenodd" /></svg>`, 'text-gray-400')}
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${eventTable('Son Ölümler', deaths, 'death')}
+                    ${eventTable('Son Öldürmeler', kills, 'kill')}
+                </div>
+            `;
+        }
+
+
+        function setupEventListeners() {
+            tabDashboard.addEventListener('click', () => switchTab('dashboard'));
+            tabElite.addEventListener('click', () => switchTab('elite'));
+            tabAll.addEventListener('click', () => switchTab('all'));
+            searchInput.addEventListener('input', e => { currentSearchTerm = e.target.value; renderElitePlayers(); });
+
+            detailsModal.addEventListener('click', (e) => {
+                 if(e.target.id === 'detailsModal' || e.target.closest('#closeModalBtn')) {
+                    detailsModal.classList.add('hidden');
+                 }
+            });
+
+            roleFiltersContainer.addEventListener('click', e => {
+                const button = e.target.closest('.filter-btn');
+                if (!button) return;
+                currentFilter = button.dataset.filter;
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filter-active'));
+                button.classList.add('filter-active');
+                renderElitePlayers();
+            });
+
+            elitePlayersList.addEventListener('click', e => {
+                 const playerItem = e.target.closest('.player-list-item');
+                 if(playerItem) { selectedPlayerId = playerItem.dataset.playerId; renderElitePlayers(); }
+            });
+            
+            // Refactored main event listener for simplicity and reliability
+            document.body.addEventListener('click', async (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                // --- Actions outside of the main player card ---
+                if (button.matches('.add-to-elite-btn')) {
+                    await addPlayerToElite(button.dataset.playerName);
+                    return;
+                }
+               
+                // --- Actions inside of the main player card ---
+                const card = button.closest('.glass-card[id^="card-"]');
+                if (!card) return;
+
+                const playerId = card.id.replace('card-', '');
+                const player = elitePlayers.find(p => p.id === playerId);
+                if (!player) return;
+
+                if (button.matches('.view-details-btn')) {
+                    await showPlayerDetails(player.id);
+                } else if (button.matches('.remove-player-btn')) {
+                    await removePlayerFromElite(playerId);
+                } else if (button.matches('.role-btn')) {
+                    await updatePlayer(playerId, { role: button.dataset.role });
+                } else if (button.matches('.add-spec-btn')) {
+                    const nameInput = card.querySelector('.spec-name-input');
+                    const valueInput = card.querySelector('.spec-value-input');
+                    if (nameInput.value.trim() && valueInput.value.trim()) {
+                        const newSpecs = [...(player.specs || []), { name: nameInput.value.trim(), value: parseInt(valueInput.value) || 0 }];
+                        await updatePlayer(playerId, { specs: newSpecs });
+                        nameInput.value = '';
+                        valueInput.value = '';
+                    }
+                } else if (button.matches('.remove-spec-btn')) {
+                    const newSpecs = player.specs.filter((_, i) => i !== parseInt(button.dataset.specIndex));
+                    await updatePlayer(playerId, { specs: newSpecs });
+                } else if (button.matches('.add-tag-btn')) {
+                    const tagInput = card.querySelector('.tag-input');
+                    if (tagInput.value.trim()) {
+                        const newTags = [...(player.tags || []), tagInput.value.trim()];
+                        await updatePlayer(playerId, { tags: newTags });
+                        tagInput.value = '';
+                    }
+                } else if (button.matches('.remove-tag-btn')) {
+                    const newTags = player.tags.filter((_, i) => i !== parseInt(button.dataset.tagIndex));
+                    await updatePlayer(playerId, { tags: newTags });
+                }
+            });
+        }
+        
+        function switchTab(tab) {
+            const tabs = ['dashboard', 'elite', 'all'];
+            tabs.forEach(t => {
+                document.getElementById(`content-${t}`).classList.toggle('hidden', t !== tab);
+                document.getElementById(`tab-${t}`).classList.toggle('tab-active', t === tab);
+                document.getElementById(`tab-${t}`).classList.toggle('text-gray-400', t !== tab);
+            });
+        }
+        
+        async function addPlayerToElite(playerName) {
+            if (!playerName) return;
+            const newPlayer = { role: 'DPS', specs: [], tags: [] };
+            try {
+                const docRef = doc(db, 'guilds', GUILD_ID, 'elitePlayers', playerName);
+                await setDoc(docRef, newPlayer);
+            } catch (error) { console.error("Error adding player:", error); }
+        }
+        
+        async function removePlayerFromElite(playerId) {
+            if (!playerId) return;
+            try {
+                const docRef = doc(db, 'guilds', GUILD_ID, 'elitePlayers', playerId);
+                await deleteDoc(docRef);
+            } catch (error) { console.error("Error removing player:", error); }
+        }
+
+        async function updatePlayer(playerId, dataToUpdate) {
+            if (!playerId) return;
+            try {
+                const docRef = doc(db, 'guilds', GUILD_ID, 'elitePlayers', playerId);
+                await setDoc(docRef, dataToUpdate, { merge: true });
+            } catch (error) { console.error("Error updating player:", error); }
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
+
